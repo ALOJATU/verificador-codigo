@@ -24,7 +24,7 @@ app.get('/verificar', async (req, res) => {
             user: process.env.EMAIL_USER,
             password: process.env.EMAIL_PASS,
             host: process.env.IMAP_HOST,
-            port: process.env.IMAP_PORT,
+            port: parseInt(process.env.IMAP_PORT),
             tls: true,
             tlsOptions: { rejectUnauthorized: false },
             authTimeout: 3000
