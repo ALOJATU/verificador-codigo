@@ -20,15 +20,19 @@ app.get('/verificar', async (req, res) => {
     }
 
     const config = {
-        imap: {
-            user: process.env.EMAIL_USER,
-            password: process.env.EMAIL_PASS,
-            host: process.env.IMAP_HOST,
-            port: process.env.IMAP_PORT,
-            tls: true,
-            authTimeout: 3000
-        }
-    };
+  imap: {
+    user: process.env.EMAIL_USER,
+    password: process.env.EMAIL_PASS,
+    host: process.env.IMAP_HOST,
+    port: process.env.IMAP_PORT,
+    tls: true,
+    tlsOptions: {
+      rejectUnauthorized: false  // ← Esta línea es la clave
+    },
+    authTimeout: 3000
+  }
+};
+
 
     try {
         const connection = await imaps.connect(config);
