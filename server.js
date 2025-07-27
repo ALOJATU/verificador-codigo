@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const imaps = require('imap-simple');
@@ -10,7 +9,8 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-const autorizados = ['eddnis2025@gmail.com', 'alojatu2024@gmail.com'];
+// Correos autorizados
+const autorizados = ['alojatu2024@gmail.com', 'eddnis2025@gmail.com'];
 
 app.get('/verificar', async (req, res) => {
     const email = req.query.email;
@@ -24,11 +24,9 @@ app.get('/verificar', async (req, res) => {
             user: process.env.EMAIL_USER,
             password: process.env.EMAIL_PASS,
             host: process.env.IMAP_HOST,
-            port: parseInt(process.env.IMAP_PORT),
+            port: process.env.IMAP_PORT,
             tls: true,
-            tlsOptions: {
-                rejectUnauthorized: false
-            },
+            tlsOptions: { rejectUnauthorized: false },
             authTimeout: 3000
         }
     };
@@ -36,29 +34,50 @@ app.get('/verificar', async (req, res) => {
     try {
         const connection = await imaps.connect(config);
         await connection.openBox('INBOX');
+
         const delay = 24 * 3600 * 1000;
-        let searchCriteria = ['ALL', ['SINCE', new Date(Date.now() - delay).toISOString()]];
-        let fetchOptions = { bodies: ['HEADER', 'TEXT'], markSeen: false };
+        const searchCriteria = ['ALL', ['SINCE', new Date(Date.now() - delay).toISOString()]];
+        const fetchOptions = {
+            bodies: ['HEADER', 'TEXT', 'TEXT.HTML'],
+            markSeen: false
+        };
+
         const messages = await connection.search(searchCriteria, fetchOptions);
 
-        const netflix = messages.reverse().find(msg => {
+        const targetEmail = messages.reverse().find(msg => {
             const headers = msg.parts.find(p => p.which === 'HEADER').body;
+            const from = headers.from ? headers.from[0] : '';
             const subject = headers.subject ? headers.subject[0] : '';
-            return subject.toLowerCase().includes('código') || subject.toLowerCase().includes('codigo');
+            return (
+                from.toLowerCase().includes('info@account.netflix.com') &&
+                (subject.toLowerCase().includes('código') || subject.toLowerCase().includes('codigo'))
+            );
         });
 
-        if (!netflix) {
+        if (!targetEmail) {
             return res.status(404).json({ error: 'No se encontró ningún correo de verificación.' });
         }
 
-        const body = netflix.parts.find(p => p.which === 'TEXT').body;
-        const codeMatch = body.match(/\b\d{4,8}\b/);
+        const textBody = targetEmail.parts.find(p => p.which === 'TEXT')?.body || '';
+        const htmlBody = targetEmail.parts.find(p => p.which === 'TEXT.HTML')?.body || '';
 
-        if (codeMatch) {
-            res.json({ codigo: codeMatch[0] });
-        } else {
-            res.status(404).json({ error: 'No se encontró código en el correo.' });
+        // Primero intenta encontrar código en texto plano
+        const codeInText = textBody.match(/\b\d{4,8}\b/);
+
+        if (codeInText) {
+            return res.json({ tipo: 'codigo', valor: codeInText[0] });
         }
+
+        // Si no hay código visible, busca el enlace del botón "Obtener código"
+        const cleanHtml = htmlBody.replace(/\r?\n|\r/g, '');
+        const linkMatch = cleanHtml.match(/href="([^"]+)"[^>]*>\s*Obtener código/i);
+
+        if (linkMatch) {
+            return res.json({ tipo: 'enlace', valor: linkMatch[1] });
+        }
+
+        // Si no se encuentra nada
+        return res.status(404).json({ error: 'No se encontró ningún código ni enlace.' });
 
     } catch (error) {
         console.error('Error al conectar o leer el correo:', error);
