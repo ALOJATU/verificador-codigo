@@ -20,16 +20,15 @@ app.get('/verificar', async (req, res) => {
     }
 
     // Validar configuración
-    const config = {
-        imap: {
-            user: process.env.EMAIL_USER,
-            password: process.env.EMAIL_PASS,
-            host: process.env.IMAP_HOST,
-            port: Number(process.env.IMAP_PORT),
-            tls: process.env.IMAP_TLS?.toLowerCase() === 'true',
-            tlsOptions: { rejectUnauthorized: false }
-        }
-    };
+    const imap = new Imap({
+  user: process.env.EMAIL_USER,
+  password: process.env.EMAIL_PASS,
+  host: process.env.IMAP_HOST,
+  port: parseInt(process.env.IMAP_PORT),
+  tls: true, // ¡clave!
+  tlsOptions: { rejectUnauthorized: false }, // permite certificados autofirmados
+  authTimeout: 3000
+});
 
     if (!config.imap.user || !config.imap.password || !config.imap.host || !config.imap.port) {
         return res.status(500).json({ error: 'Falta configuración de entorno.' });
