@@ -1,4 +1,5 @@
 const express = require('express');
+const Imap = require('imap');
 const cors = require('cors');
 const imaps = require('imap-simple');
 require('dotenv').config();
