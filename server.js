@@ -19,19 +19,19 @@ app.get('/verificar', async (req, res) => {
         return res.status(403).json({ error: 'Correo no autorizado.' });
     }
 
-   const config = {
-   imap: {
-    user: process.env.EMAIL_USER,
-    password: process.env.EMAIL_PASS,
-    host: process.env.IMAP_HOST,
-    port: parseInt(process.env.IMAP_PORT),
-    tls: process.env.IMAP_TLS === 'true',
-    tlsOptions: { rejectUnauthorized: false }
-  }
-};
-
+    const config = {
+        imap: {
+            user: process.env.EMAIL_USER,
+            password: process.env.EMAIL_PASS,
+            host: process.env.IMAP_HOST,
+            port: parseInt(process.env.IMAP_PORT, 10),
+            tls: process.env.IMAP_TLS?.toLowerCase() === 'true',
+            tlsOptions: { rejectUnauthorized: false }
+        }
+    };
 
     try {
+        console.log('Conectando al correo IMAP...');
         const connection = await imaps.connect(config);
         await connection.openBox('INBOX');
 
@@ -49,9 +49,9 @@ app.get('/verificar', async (req, res) => {
             const from = headers.from ? headers.from[0] : '';
             const subject = headers.subject ? headers.subject[0] : '';
             return (
-                from.toLowerCase().includes('info@account.netflix.com') &&
-                (subject.toLowerCase().includes('código') || subject.toLowerCase().includes('codigo'))
-            );
+                from.toLowerCase().includes('info@account.netflix.com') ||
+                from.toLowerCase().includes('eddnis2025@gmail.com') // Ejemplo
+            ) && (subject.toLowerCase().includes('código') || subject.toLowerCase().includes('codigo'));
         });
 
         if (!targetEmail) {
@@ -61,30 +61,27 @@ app.get('/verificar', async (req, res) => {
         const textBody = targetEmail.parts.find(p => p.which === 'TEXT')?.body || '';
         const htmlBody = targetEmail.parts.find(p => p.which === 'TEXT.HTML')?.body || '';
 
-        // Primero intenta encontrar código en texto plano
-        const codeInText = textBody.match(/\b\d{4,8}\b/);
-
-        if (codeInText) {
-            return res.json({ tipo: 'codigo', valor: codeInText[0] });
+        // Buscar código en texto plano
+        const codeMatch = textBody.match(/\b\d{4,8}\b/);
+        if (codeMatch) {
+            return res.json({ tipo: 'codigo', valor: codeMatch[0] });
         }
 
-        // Si no hay código visible, busca el enlace del botón "Obtener código"
-        const cleanHtml = htmlBody.replace(/\r?\n|\r/g, '');
+        // Buscar botón "Obtener código" en HTML
+        const cleanHtml = htmlBody.replace(/\s+/g, ' ');
         const linkMatch = cleanHtml.match(/href="([^"]+)"[^>]*>\s*Obtener código/i);
-
         if (linkMatch) {
             return res.json({ tipo: 'enlace', valor: linkMatch[1] });
         }
 
-        // Si no se encuentra nada
         return res.status(404).json({ error: 'No se encontró ningún código ni enlace.' });
 
     } catch (error) {
-        console.error('Error al conectar o leer el correo:', error);
-        res.status(500).json({ error: 'Error del servidor.' });
+        console.error('❌ Error al conectar o leer el correo:', error);
+        return res.status(500).json({ error: 'Error del servidor al conectar al correo.' });
     }
 });
 
 app.listen(PORT, () => {
-    console.log(`Servidor activo en http://localhost:${PORT}`);
+    console.log(`✅ Servidor activo en http://localhost:${PORT}`);
 });
