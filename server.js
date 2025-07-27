@@ -19,17 +19,17 @@ app.get('/verificar', async (req, res) => {
         return res.status(403).json({ error: 'Correo no autorizado.' });
     }
 
-    const config = {
-        imap: {
-            user: process.env.EMAIL_USER,
-            password: process.env.EMAIL_PASS,
-            host: process.env.IMAP_HOST,
-            port: parseInt(process.env.IMAP_PORT),
-            tls: true,
-            tlsOptions: { rejectUnauthorized: false },
-            authTimeout: 3000
-        }
-    };
+   const config = {
+   imap: {
+    user: process.env.EMAIL_USER,
+    password: process.env.EMAIL_PASS,
+    host: process.env.IMAP_HOST,
+    port: parseInt(process.env.IMAP_PORT),
+    tls: process.env.IMAP_TLS === 'true',
+    tlsOptions: { rejectUnauthorized: false }
+  }
+};
+
 
     try {
         const connection = await imaps.connect(config);
